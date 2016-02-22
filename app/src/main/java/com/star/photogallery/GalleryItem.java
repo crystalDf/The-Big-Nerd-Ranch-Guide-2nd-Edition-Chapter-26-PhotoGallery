@@ -19,6 +19,10 @@ public class GalleryItem {
         mUrl = url;
     }
 
+    public String getId() {
+        return mId;
+    }
+
     public String getUrl() {
         return mUrl;
     }
