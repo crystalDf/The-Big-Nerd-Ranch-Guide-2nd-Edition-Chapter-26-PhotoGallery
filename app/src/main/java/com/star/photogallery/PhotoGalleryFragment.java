@@ -2,18 +2,18 @@ package com.star.photogallery;
 
 
 import android.annotation.TargetApi;
-import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
+import android.app.ProgressDialog;
+import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -21,18 +21,29 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class PhotoGalleryFragment extends Fragment {
 
     private static final String TAG = "PhotoGalleryFragment";
 
+    private static final int DEFAULT_COLUMN_NUM = 3;
+    private static final int ITEM_WIDTH = 100;
+
     private RecyclerView mPhotoRecyclerView;
-    private List<GalleryItem> mGalleryItems = new ArrayList<>();
-    private ThumbnailDownloader<PhotoHolder> mPhotoHolderThumbnailDownloader;
+    private GridLayoutManager mGridLayoutManager;
+    private List<GalleryItem> mGalleryItems;
+
+    private SearchView mSearchView;
+
+    private ProgressDialog mProgressDialog;
+
+    private int mCurrentPage;
+    private int mFetchedPage;
+    private int mCurrentPosition;
 
     public static PhotoGalleryFragment newInstance() {
         return new PhotoGalleryFragment();
@@ -46,69 +57,69 @@ public class PhotoGalleryFragment extends Fragment {
 
         updateItems();
 
-        Handler responseHandler = new Handler();
-
-        mPhotoHolderThumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
-        mPhotoHolderThumbnailDownloader.setThumbnailDownloadListener(
-                new ThumbnailDownloader.ThumbnailDownloadListener<PhotoHolder>() {
-                    @Override
-                    public void onThumbnailDownloaded(PhotoHolder target, Bitmap thumbnail) {
-                        Drawable drawable = new BitmapDrawable(getResources(), thumbnail);
-                        target.bindDrawable(drawable);
-                    }
-                }
-        );
-
-        mPhotoHolderThumbnailDownloader.start();
-        mPhotoHolderThumbnailDownloader.getLooper();
-
         Log.i(TAG, "Background thread started");
     }
 
-    @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
 
         mPhotoRecyclerView = (RecyclerView)
                 view.findViewById(R.id.fragment_photo_gallery_recycler_view);
-        mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
+
+        mGridLayoutManager = new GridLayoutManager(getActivity(), DEFAULT_COLUMN_NUM);
+
+        mPhotoRecyclerView.setLayoutManager(mGridLayoutManager);
+
+        mPhotoRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(
+                new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+
+                        int spanCount = convertPxToDp(mPhotoRecyclerView.getWidth()) / ITEM_WIDTH;
+                        mGridLayoutManager.setSpanCount(spanCount);
+                    }
+                });
+
+        mPhotoRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+
+                updateCurrentPage();
+            }
+        });
 
         setupAdapter();
         
         return view;
     }
 
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
+    private int convertPxToDp(float sizeInPx) {
+        DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();
 
-        mPhotoHolderThumbnailDownloader.clearQueue();
+        return (int) (sizeInPx / displayMetrics.density);
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mPhotoHolderThumbnailDownloader.quit();
-
-        Log.i(TAG, "Background thread destroyed");
-    }
-
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         super.onCreateOptionsMenu(menu, inflater);
+
         inflater.inflate(R.menu.fragment_photo_gallery, menu);
 
-        MenuItem searchItem = menu.findItem(R.id.menu_item_search);
-        final SearchView searchView = (SearchView) searchItem.getActionView();
+        final MenuItem searchItem = menu.findItem(R.id.menu_item_search);
+        mSearchView = (SearchView) MenuItemCompat.getActionView(searchItem);
 
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+        mSearchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 Log.d(TAG, "QueryTextSubmit: " + query);
+
                 QueryPreferences.setStoredQuery(getActivity(), query);
                 updateItems();
+
+                mSearchView.onActionViewCollapsed();
+
                 return true;
             }
 
@@ -201,7 +212,7 @@ public class PhotoGalleryFragment extends Fragment {
         @Override
         public void onBindViewHolder(PhotoHolder holder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
-            Drawable placeHolder = getResources().getDrawable(R.drawable.bill_up_close);
+            Drawable placeHolder = getResources().getDrawable(R.drawable.emma);
             holder.bindDrawable(placeHolder);
             mPhotoHolderThumbnailDownloader.queueThumbnail(holder, galleryItem.getUrl());
         }
@@ -224,7 +235,7 @@ public class PhotoGalleryFragment extends Fragment {
         protected List<GalleryItem> doInBackground(Void... params) {
 
             if (mQuery == null) {
-                return new FlickrFetchr().fetchRecentPhotos();
+                return new FlickrFetchr().getRecentPhotos();
             } else {
                 return new FlickrFetchr().searchPhotos(mQuery);
             }

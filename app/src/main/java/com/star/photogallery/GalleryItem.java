@@ -15,12 +15,12 @@ public class GalleryItem {
         mId = id;
     }
 
-    public void setUrl(String url) {
-        mUrl = url;
-    }
-
     public String getId() {
         return mId;
+    }
+
+    public void setUrl(String url) {
+        mUrl = url;
     }
 
     public String getUrl() {
@@ -31,4 +31,5 @@ public class GalleryItem {
     public String toString() {
         return mCaption;
     }
+
 }

@@ -14,4 +14,5 @@ public class PhotoGalleryActivity extends SingleFragmentActivity {
     protected Fragment createFragment() {
         return PhotoGalleryFragment.newInstance();
     }
+
 }
