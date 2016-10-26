@@ -1,12 +1,9 @@
 package com.star.photogallery;
 
 
-import android.annotation.TargetApi;
 import android.app.ProgressDialog;
 import android.content.res.Resources;
-import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.MenuItemCompat;
@@ -23,6 +20,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
+
+import com.squareup.picasso.Picasso;
 
 import java.util.List;
 
@@ -130,11 +129,11 @@ public class PhotoGalleryFragment extends Fragment {
             }
         });
 
-        searchView.setOnSearchClickListener(new View.OnClickListener() {
+        mSearchView.setOnSearchClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String query = QueryPreferences.getStoredQuery(getActivity());
-                searchView.setQuery(query, false);
+                mSearchView.setQuery(query, false);
             }
         });
 
@@ -147,18 +146,22 @@ public class PhotoGalleryFragment extends Fragment {
 
     }
 
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_item_clear:
                 QueryPreferences.setStoredQuery(getActivity(), null);
+
                 updateItems();
+
                 return true;
             case R.id.menu_item_toggle_polling:
                 boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+
                 PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
-                getActivity().invalidateOptionsMenu();
+
+                getActivity().supportInvalidateOptionsMenu();
+
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -167,13 +170,33 @@ public class PhotoGalleryFragment extends Fragment {
     }
 
     private void updateItems() {
+        init();
+
         String query = QueryPreferences.getStoredQuery(getActivity());
-        new FetchItemsTask(query).execute();
+
+        new FetchItemsTask(query).execute(mCurrentPage);
+    }
+
+    private void init() {
+        mCurrentPage = 1;
+        mFetchedPage = 0;
+        mCurrentPosition = 0;
+
+        if (mGalleryItems != null) {
+            mGalleryItems.clear();
+            mGalleryItems = null;
+        }
+
     }
 
     private void setupAdapter() {
         if (isAdded()) {
-            mPhotoRecyclerView.setAdapter(new PhotoAdapter(mGalleryItems));
+            if (mGalleryItems != null) {
+                mPhotoRecyclerView.setAdapter(new PhotoAdapter(mGalleryItems));
+            } else {
+                mPhotoRecyclerView.setAdapter(null);
+            }
+            mPhotoRecyclerView.scrollToPosition(mCurrentPosition);
         }
     }
 
@@ -184,12 +207,15 @@ public class PhotoGalleryFragment extends Fragment {
         public PhotoHolder(View itemView) {
             super(itemView);
 
-            mItemImageView = (ImageView) itemView.findViewById(
-                    R.id.fragment_photo_gallery_recycler_view);
+            mItemImageView = (ImageView)
+                    itemView.findViewById(R.id.fragment_photo_gallery_image_view);
         }
 
-        public void bindDrawable(Drawable drawable) {
-            mItemImageView.setImageDrawable(drawable);
+        public void bindGalleryItem(GalleryItem galleryItem) {
+            Picasso.with(getActivity())
+                    .load(galleryItem.getUrl())
+                    .placeholder(R.drawable.emma)
+                    .into(mItemImageView);
         }
     }
 
@@ -204,17 +230,17 @@ public class PhotoGalleryFragment extends Fragment {
         @Override
         public PhotoHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             LayoutInflater inflater = LayoutInflater.from(getActivity());
-            View view = inflater.inflate(R.layout.fragment_photo_gallery, parent, false);
+            View view = inflater.inflate(R.layout.gallery_item, parent, false);
 
             return new PhotoHolder(view);
         }
 
         @Override
-        public void onBindViewHolder(PhotoHolder holder, int position) {
+        public void onBindViewHolder(PhotoHolder photoHolder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
-            Drawable placeHolder = getResources().getDrawable(R.drawable.emma);
-            holder.bindDrawable(placeHolder);
-            mPhotoHolderThumbnailDownloader.queueThumbnail(holder, galleryItem.getUrl());
+
+            photoHolder.bindGalleryItem(galleryItem);
+
         }
 
         @Override
@@ -223,7 +249,7 @@ public class PhotoGalleryFragment extends Fragment {
         }
     }
 
-    private class FetchItemsTask extends AsyncTask<Void, Void, List<GalleryItem>> {
+    private class FetchItemsTask extends AsyncTask<Integer, Void, List<GalleryItem>> {
 
         private String mQuery;
 
@@ -232,19 +258,61 @@ public class PhotoGalleryFragment extends Fragment {
         }
 
         @Override
-        protected List<GalleryItem> doInBackground(Void... params) {
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+            mProgressDialog = new ProgressDialog(getActivity());
+            mProgressDialog.setTitle("My Progress Dialog");
+            mProgressDialog.setMessage("My Progress Message");
+            mProgressDialog.setCancelable(false);
+            mProgressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            mProgressDialog.setIndeterminate(true);
+            mProgressDialog.show();
+
+        }
+
+        @Override
+        protected List<GalleryItem> doInBackground(Integer... params) {
 
             if (mQuery == null) {
-                return new FlickrFetchr().getRecentPhotos();
+                return new FlickrFetchr().getRecentPhotos(params[0]);
             } else {
-                return new FlickrFetchr().searchPhotos(mQuery);
+                return new FlickrFetchr().searchPhotos(params[0], mQuery);
             }
         }
 
         @Override
         protected void onPostExecute(List<GalleryItem> items) {
-            mGalleryItems = items;
+            if (mGalleryItems == null) {
+                mGalleryItems = items;
+            } else {
+                if (items != null) {
+                    mGalleryItems.addAll(items);
+                }
+            }
+
+            mFetchedPage++;
             setupAdapter();
+
+            if (mProgressDialog != null) {
+                mProgressDialog.dismiss();
+            }
         }
     }
+
+    private void updateCurrentPage() {
+        int firstVisibleItemPosition = mGridLayoutManager.findFirstVisibleItemPosition();
+        int lastVisibleItemPosition = mGridLayoutManager.findLastVisibleItemPosition();
+
+        if (lastVisibleItemPosition == (mGridLayoutManager.getItemCount() - 1) &&
+                mCurrentPage == mFetchedPage ) {
+            mCurrentPosition = firstVisibleItemPosition + 3;
+            mCurrentPage++;
+
+            String query = QueryPreferences.getStoredQuery(getActivity());
+
+            new FetchItemsTask(query).execute(mCurrentPage);
+        }
+    }
+
 }
