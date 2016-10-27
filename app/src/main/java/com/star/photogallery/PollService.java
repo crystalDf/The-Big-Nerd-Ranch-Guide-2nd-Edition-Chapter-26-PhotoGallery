@@ -115,4 +115,5 @@ public class PollService extends IntentService {
 
         return isNetworkConnected;
     }
+
 }
