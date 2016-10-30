@@ -36,6 +36,8 @@ public class FlickrFetchr {
     private static final String EXTRAS_VALUE = "url_s";
     private static final String PAGE_KEY = "page";
 
+    private static final int START_PAGE = 1;
+
     private static final String TEXT = "text";
 
     private static final Uri ENDPOINT = Uri
@@ -83,9 +85,17 @@ public class FlickrFetchr {
         return downloadGalleryItems(url);
     }
 
+    public List<GalleryItem> getRecentPhotos() {
+        return getRecentPhotos(START_PAGE);
+    }
+
     public List<GalleryItem> searchPhotos(int page, String query) {
         String url = buildUrl(SEARCH_METHOD, page, query);
         return downloadGalleryItems(url);
+    }
+
+    public List<GalleryItem> searchPhotos(String query) {
+        return searchPhotos(START_PAGE, query);
     }
 
     private String buildUrl(String method, int page, String query) {

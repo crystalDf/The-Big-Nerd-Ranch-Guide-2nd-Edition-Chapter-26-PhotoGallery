@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -20,10 +21,15 @@ public class PollService extends IntentService {
 
     private static final String TAG = "PollService";
 
-    private static final long POLL_INTERVAL = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
+//    private static final long POLL_INTERVAL = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
+    private static final long POLL_INTERVAL = 1000 * 60;
 
     public static Intent newIntent(Context context) {
         return new Intent(context, PollService.class);
+    }
+
+    public PollService() {
+        super(TAG);
     }
 
     public static void setServiceAlarm(Context context, boolean isOn) {
@@ -52,10 +58,6 @@ public class PollService extends IntentService {
         return pendingIntent != null;
     }
 
-    public PollService() {
-        super(TAG);
-    }
-
     @Override
     protected void onHandleIntent(Intent intent) {
 
@@ -69,9 +71,9 @@ public class PollService extends IntentService {
         List<GalleryItem> items;
 
         if (query == null) {
-            items = new FlickrFetchr().getRecentPhotos(1);
+            items = new FlickrFetchr().getRecentPhotos();
         } else {
-            items = new FlickrFetchr().searchPhotos(1, query);
+            items = new FlickrFetchr().searchPhotos(query);
         }
 
         if (items.size() == 0) {
@@ -109,11 +111,9 @@ public class PollService extends IntentService {
         ConnectivityManager connectivityManager = (ConnectivityManager)
                 getSystemService(CONNECTIVITY_SERVICE);
 
-        boolean isNetworkAvailable = connectivityManager.getActiveNetworkInfo() != null;
-        boolean isNetworkConnected = isNetworkAvailable &&
-                connectivityManager.getActiveNetworkInfo().isConnected();
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
 
-        return isNetworkConnected;
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
 }
