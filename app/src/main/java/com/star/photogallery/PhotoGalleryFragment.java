@@ -1,8 +1,10 @@
 package com.star.photogallery;
 
 
+import android.content.Context;
 import android.content.res.Resources;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.MenuItemCompat;
@@ -24,6 +26,8 @@ import android.widget.ProgressBar;
 import com.squareup.picasso.Picasso;
 
 import java.util.List;
+
+import static com.star.photogallery.PollJobService.isServiceScheduledOn;
 
 
 public class PhotoGalleryFragment extends Fragment {
@@ -151,12 +155,21 @@ public class PhotoGalleryFragment extends Fragment {
         });
 
         MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
-        if (PollIntentService.isServiceAlarmOn(getActivity())) {
+
+        if (isServiceOn(getActivity())) {
             toggleItem.setTitle(R.string.stop_polling);
         } else {
             toggleItem.setTitle(R.string.start_polling);
         }
 
+    }
+
+    private boolean isServiceOn(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            return isServiceScheduledOn(context);
+        } else {
+            return PollIntentService.isServiceAlarmOn(context);
+        }
     }
 
     @Override
@@ -173,9 +186,7 @@ public class PhotoGalleryFragment extends Fragment {
 
                 return true;
             case R.id.menu_item_toggle_polling:
-                boolean shouldStartAlarm = !PollIntentService.isServiceAlarmOn(getActivity());
-
-                PollIntentService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                setService(getActivity());
 
                 getActivity().supportInvalidateOptionsMenu();
 
@@ -184,6 +195,19 @@ public class PhotoGalleryFragment extends Fragment {
                 return super.onOptionsItemSelected(item);
         }
 
+    }
+
+    private void setService(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            boolean shouldStartSchedule = !isServiceScheduledOn(context);
+
+            PollJobService.setServiceScheduled(getActivity(), shouldStartSchedule);
+
+        } else {
+            boolean shouldStartAlarm = !PollIntentService.isServiceAlarmOn(context);
+
+            PollIntentService.setServiceAlarm(getActivity(), shouldStartAlarm);
+        }
     }
 
     private void updateItems() {
