@@ -84,7 +84,7 @@ public class PollJobService extends JobService {
 
             Log.i(TAG, "Poll Flickr for new images");
 
-            new PollServiceUtils(TAG).pollFlickr(PollJobService.this);
+            PollServiceUtils.pollFlickr(PollJobService.this);
 
             jobFinished(jobParameters, false);
 

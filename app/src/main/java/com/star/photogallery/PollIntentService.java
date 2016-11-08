@@ -51,7 +51,7 @@ public class PollIntentService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        new PollServiceUtils(TAG).pollFlickr(this);
+        PollServiceUtils.pollFlickr(this);
     }
 
 }

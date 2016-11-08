@@ -16,13 +16,10 @@ import java.util.List;
 
 public class PollServiceUtils {
 
-    private static String mTAG;
+    public static void pollFlickr(Context context) {
 
-    public PollServiceUtils(String tag) {
-        mTAG = tag;
-    }
+        String tag = context.getClass().getName();
 
-    public void pollFlickr(Context context) {
         if (!isNetworkAvailableAndConnected(context)) {
             return;
         }
@@ -44,9 +41,9 @@ public class PollServiceUtils {
 
         String resultId = items.get(0).getId();
         if (resultId.equals(lastResultId)) {
-            Log.i(mTAG, "Got an old result: " + resultId);
+            Log.i(tag, "Got an old result: " + resultId);
         } else {
-            Log.i(mTAG, "Got an new result: " + resultId);
+            Log.i(tag, "Got an new result: " + resultId);
 
             Resources resources = context.getResources();
             Intent i = PhotoGalleryActivity.newIntent(context);
@@ -70,7 +67,7 @@ public class PollServiceUtils {
         QueryPreferences.setLastResultId(context, resultId);
     }
 
-    private boolean isNetworkAvailableAndConnected(Context context) {
+    private static boolean isNetworkAvailableAndConnected(Context context) {
         ConnectivityManager connectivityManager = (ConnectivityManager)
                 context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
@@ -78,4 +75,5 @@ public class PollServiceUtils {
 
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
+
 }
