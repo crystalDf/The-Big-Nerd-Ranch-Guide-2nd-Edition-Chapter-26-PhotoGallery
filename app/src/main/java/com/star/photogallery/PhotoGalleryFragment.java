@@ -27,8 +27,6 @@ import com.squareup.picasso.Picasso;
 
 import java.util.List;
 
-import static com.star.photogallery.PollJobService.isServiceScheduledOn;
-
 
 public class PhotoGalleryFragment extends Fragment {
 
@@ -166,7 +164,7 @@ public class PhotoGalleryFragment extends Fragment {
 
     private boolean isServiceOn(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return isServiceScheduledOn(context);
+            return PollJobService.isServiceScheduledOn(context);
         } else {
             return PollIntentService.isServiceAlarmOn(context);
         }
@@ -199,7 +197,7 @@ public class PhotoGalleryFragment extends Fragment {
 
     private void setService(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            boolean shouldStartSchedule = !isServiceScheduledOn(context);
+            boolean shouldStartSchedule = !PollJobService.isServiceScheduledOn(context);
 
             PollJobService.setServiceScheduled(getActivity(), shouldStartSchedule);
 
