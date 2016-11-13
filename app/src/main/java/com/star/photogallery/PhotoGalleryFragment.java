@@ -164,7 +164,7 @@ public class PhotoGalleryFragment extends Fragment {
 
     private boolean isServiceOn(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return PollJobService.isServiceScheduledOn(context);
+            return PollJobService.isServiceScheduleOn(context);
         } else {
             return PollIntentService.isServiceAlarmOn(context);
         }
@@ -197,9 +197,9 @@ public class PhotoGalleryFragment extends Fragment {
 
     private void setService(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            boolean shouldStartSchedule = !PollJobService.isServiceScheduledOn(context);
+            boolean shouldStartSchedule = !PollJobService.isServiceScheduleOn(context);
 
-            PollJobService.setServiceScheduled(getActivity(), shouldStartSchedule);
+            PollJobService.setServiceSchedule(getActivity(), shouldStartSchedule);
 
         } else {
             boolean shouldStartAlarm = !PollIntentService.isServiceAlarmOn(context);
